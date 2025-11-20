@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assignment Generator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Orbitron:wght@500;700&display=swap');
+
+        body {
+            background-color: #121212;
+            color: #00bcd4;
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px #00bcd4;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+            justify-content: center;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* FORM STYLES */
+        .input-section {
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            box-shadow: 0 0 20px rgba(0, 188, 212, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            background: #2c2c2c;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #00bcd4;
+            box-shadow: 0 0 8px rgba(0, 188, 212, 0.3);
+        }
+
+        /* File Input Styling */
+        input[type="file"] {
+            background: #222;
+            padding: 5px;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #00bcd4, #008ba3);
+            border: none;
+            color: white;
+            font-weight: bold;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(0, 188, 212, 0.5);
+        }
+
+        /* PREVIEW AREA */
+        .preview-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        canvas {
+            display: none; 
+        }
+
+        #previewImg {
+            width: 300px;
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            margin-top: 20px;
+            background: #0a0e17; /* Match canvas bg */
+        }
+
+        .status {
+            margin-top: 10px;
+            color: #fff;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>AI COVER PAGE GENERATOR</h1>
+
+    <!-- Hidden default logo loader -->
+    <img id="logoSource" src="university-of-peshawar-logo-600x600.png" style="display:none;" crossorigin="anonymous">
+
+    <div class="container">
+        <!-- STEP 1: INPUTS -->
+        <div class="input-section">
+            
+            <!-- Logo Upload Section -->
+            <div class="form-group" style="border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 20px;">
+                <label style="color:#00bcd4; font-weight:bold;">1. University Logo</label>
+                <input type="file" id="logoUpload" accept="image/*" onchange="updateLogo(event)">
+                <small style="color:#666; font-size: 10px;">If logo doesn't load automatically, select it here.</small>
+            </div>
+
+            <div class="form-group">
+                <label>University Name</label>
+                <input type="text" id="uni" placeholder="e.g. Tech University" value="University of Peshawar">
+            </div>
+            <div class="form-group">
+                <label>Assignment Title</label>
+                <input type="text" id="title" value="Programming Fundamentals">
+            </div>
+            <div class="form-group">
+                <label>Student Name</label>
+                <input type="text" id="name" placeholder="Enter Name">
+            </div>
+            <div class="form-group">
+                <label>Roll Number</label>
+                <input type="text" id="roll" placeholder="Enter Roll No">
+            </div>
+            <div class="form-group">
+                <label>Discipline</label>
+                <input type="text" id="disc" value="Artificial Intelligence (BS-AI)">
+            </div>
+            <div class="form-group">
+                <label>Semester & Section</label>
+                <input type="text" id="sem" value="1st Semester - Section A">
+            </div>
+            <div class="form-group">
+                <label>Submitted To</label>
+                <input type="text" id="prof" placeholder="Professor Name">
+            </div>
+            
+            <button onclick="generateAndDownload()">Generate & Download JPG</button>
+        </div>
+
+        <!-- STEP 2: PREVIEW -->
+        <div class="preview-section">
+            <div style="color:white; margin-bottom:10px;">Live Preview:</div>
+            <img id="previewImg" alt="Preview will appear here">
+            <div class="status" id="statusMsg">Waiting for input...</div>
+        </div>
+    </div>
+
+    <!-- HIDDEN CANVAS FOR GENERATION -->
+    <canvas id="paperCanvas"></canvas>
+
+    <script>
+        // Logo Handling
+        const logoImg = document.getElementById('logoSource');
+        
+        function updateLogo(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    logoImg.src = e.target.result;
+                    logoImg.onload = function() {
+                        // Optional: Auto-refresh preview if needed, or wait for button click
+                        document.getElementById('statusMsg').innerText = "Logo loaded. Ready to generate.";
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function generateAndDownload() {
+            const canvas = document.getElementById('paperCanvas');
+            const ctx = canvas.getContext('2d');
+            const status = document.getElementById('statusMsg');
+
+            // A4 Canvas Setup
+            canvas.width = 1240;
+            canvas.height = 1754;
+
+            // --- DRAWING THE BACKGROUND ---
+            ctx.fillStyle = '#0a0e17'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Grid
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.05)';
+            ctx.lineWidth = 2;
+            const gridSize = 60;
+            for(let x=0; x<canvas.width; x+=gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for(let y=0; y<canvas.height; y+=gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            // Draw Tech Borders
+            ctx.strokeStyle = '#00bcd4';
+            ctx.lineWidth = 10;
+            ctx.strokeRect(40, 40, canvas.width-80, canvas.height-80);
+
+            // Draw Corner Accents
+            ctx.fillStyle = '#00bcd4';
+            ctx.fillRect(40, 40, 100, 10); // Top Left
+            ctx.fillRect(40, 40, 10, 100); 
+            ctx.fillRect(canvas.width-140, canvas.height-50, 100, 10); // Bottom Right
+            ctx.fillRect(canvas.width-50, canvas.height-140, 10, 100);
+
+            // --- DRAW LOGO (TOP LEFT) ---
+            // We check if image is loaded naturally (width > 0)
+            if (logoImg.naturalWidth > 0) {
+                // Draw logo at x=60, y=60 (inside the border)
+                // Resize to 180x180 px for good fit
+                ctx.save();
+                // Add a glow effect to the logo
+                ctx.shadowColor = "#00bcd4";
+                ctx.shadowBlur = 10;
+                ctx.drawImage(logoImg, 60, 60, 180, 180);
+                ctx.restore();
+            }
+
+            // --- GATHER DATA ---
+            const uni = document.getElementById('uni').value || "UNIVERSITY";
+            const title = document.getElementById('title').value || "ASSIGNMENT";
+            const name = document.getElementById('name').value || "";
+            const roll = document.getElementById('roll').value || "";
+            const discipline = document.getElementById('disc').value;
+            const semester = document.getElementById('sem').value;
+            const professor = document.getElementById('prof').value;
+            
+            const today = new Date().toLocaleDateString('en-GB', {
+                day: 'numeric', month: 'long', year: 'numeric'
+            });
+
+            // --- TEXT SETTINGS ---
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#ffffff';
+
+            // 1. University Name
+            ctx.font = 'bold 50px Arial';
+            // Adjusted Y position slightly to align with logo header area
+            ctx.fillText(uni.toUpperCase(), canvas.width/2, 250);
+
+            ctx.fillStyle = '#00bcd4'; 
+            ctx.font = '30px Arial';
+            ctx.fillText("DEPARTMENT OF COMPUTER SCIENCE", canvas.width/2, 300);
+
+            // 2. Assignment Title
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = "#00bcd4";
+            ctx.shadowBlur = 15;
+            ctx.font = 'bold 80px Arial';
+            wrapText(ctx, title.toUpperCase(), canvas.width/2, 550, 1000, 90);
+            ctx.shadowBlur = 0; 
+
+            // 3. Details Box
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.fillRect(200, 850, 840, 600);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(200, 850, 840, 600);
+
+            // Text Loop for Details
+            const startX = 250;
+            let startY = 950;
+            const lineHeight = 80;
+
+            drawDetail(ctx, "NAME:", name, startX, startY);
+            drawDetail(ctx, "ROLL NO:", roll, startX, startY + lineHeight);
+            drawDetail(ctx, "DISCIPLINE:", discipline, startX, startY + lineHeight*2);
+            drawDetail(ctx, "CLASS:", semester, startX, startY + lineHeight*3);
+            drawDetail(ctx, "SUBMITTED TO:", professor, startX, startY + lineHeight*4);
+            drawDetail(ctx, "DATE:", today, startX, startY + lineHeight*5);
+
+            // --- GENERATE FILE ---
+            const dataURL = canvas.toDataURL('image/jpeg', 1.0);
+            document.getElementById('previewImg').src = dataURL;
+            status.innerText = "Image generated! Downloading...";
+
+            const link = document.createElement('a');
+            link.download = 'Front_Page.jpg';
+            link.href = dataURL;
+            link.click();
+        }
+
+        function drawDetail(ctx, label, value, x, y) {
+            ctx.textAlign = 'left';
+            ctx.font = 'bold 35px Arial';
+            ctx.fillStyle = '#00bcd4'; 
+            ctx.fillText(label, x, y);
+
+            ctx.font = '35px Arial';
+            ctx.fillStyle = '#ffffff'; 
+            ctx.fillText(value, x + 350, y); 
+        }
+
+        function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+            const words = text.split(' ');
+            let line = '';
+            for(let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                const testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
+                    ctx.fillText(line, x, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line, x, y);
+        }
+    </script>
+</body>
+</html>
